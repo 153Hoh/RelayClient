@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="relay.petko.relay.log" >
+    <!-- read log file -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- write log file -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+</manifest>

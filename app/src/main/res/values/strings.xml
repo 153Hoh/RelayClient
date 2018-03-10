@@ -3,4 +3,6 @@
     <string name="bumm">BUMM</string>
     <string name="textview">TextView</string>
     <string name="register">Register</string>
+    <string name="relayki">RelayKi</string>
+    <string name="relaybe">RelayBe</string>
 </resources>

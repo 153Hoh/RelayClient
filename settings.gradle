@@ -1,1 +1,4 @@
 include ':app'
+include 'Modules:relay-handler',
+        'Modules:relay-log',
+        'Modules:relay-polling'

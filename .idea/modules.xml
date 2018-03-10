@@ -2,8 +2,12 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/Modules/Modules.iml" filepath="$PROJECT_DIR$/Modules/Modules.iml" />
       <module fileurl="file://$PROJECT_DIR$/RelayClient.iml" filepath="$PROJECT_DIR$/RelayClient.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Modules/relay-handler/relay-handler.iml" filepath="$PROJECT_DIR$/Modules/relay-handler/relay-handler.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Modules/relay-log/relay-log.iml" filepath="$PROJECT_DIR$/Modules/relay-log/relay-log.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Modules/relay-polling/relay-polling.iml" filepath="$PROJECT_DIR$/Modules/relay-polling/relay-polling.iml" />
     </modules>
   </component>
 </project>

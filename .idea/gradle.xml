@@ -8,6 +8,10 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/Modules" />
+            <option value="$PROJECT_DIR$/Modules/relay-handler" />
+            <option value="$PROJECT_DIR$/Modules/relay-log" />
+            <option value="$PROJECT_DIR$/Modules/relay-polling" />
             <option value="$PROJECT_DIR$/app" />
           </set>
         </option>

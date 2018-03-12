@@ -17,6 +17,17 @@ android {
         }
     }
 
+
+    buildTypes {
+        debug {
+            buildConfigField "String", "SERVER_ADDRESS", "\"http://192.168.6.16:9000\""
+        }
+
+        release {
+            buildConfigField "String", "SERVER_ADDRESS", "\"http://192.168.6.16:9000\""
+        }
+    }
+
     packagingOptions {
         exclude 'META-INF/DEPENDENCIES'
         exclude 'META-INF/LICENSE'

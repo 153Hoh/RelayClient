@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="petko.relayclient.ConfigActivity">
+
+    <EditText
+        android:id="@+id/server_address"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/startBut"
+        android:layout_alignStart="@+id/startBut"
+        android:layout_below="@+id/textView2"
+        android:layout_marginTop="35dp"
+        android:ems="10"
+        android:inputType="textPersonName" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="15dp"
+        android:text="Kérem adja meg a Szerver címét és az eszköz típusát!"
+        android:textAlignment="center"
+        android:textAllCaps="false"
+        android:textSize="18sp"
+        tools:textColor="@android:color/black" />
+
+    <Button
+        android:id="@+id/startBut"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/choose"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="10dp"
+        android:text="Kezdés" />
+
+    <Spinner
+        android:id="@+id/choose"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignEnd="@+id/server_address"
+        android:layout_alignLeft="@+id/server_address"
+        android:layout_alignRight="@+id/server_address"
+        android:layout_alignStart="@+id/server_address"
+        android:layout_below="@+id/server_address" />
+
+    <TextView
+        android:id="@+id/textView3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/server_address"
+        android:layout_alignBottom="@+id/server_address"
+        android:layout_toLeftOf="@+id/server_address"
+        android:layout_toStartOf="@+id/server_address"
+        android:paddingRight="10dp"
+        android:text="Szerver címe:"
+        android:textColor="@android:color/black"
+        android:textSize="18sp" />
+
+    <TextView
+        android:id="@+id/textView4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/textView3"
+        android:layout_alignStart="@+id/textView3"
+        android:layout_below="@+id/server_address"
+        android:paddingRight="10dp"
+        android:text="Eszköz típus:"
+        android:textColor="@android:color/black"
+        android:textSize="18sp" />
+
+</RelativeLayout>

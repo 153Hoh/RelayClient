@@ -1,2 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="relay.petko.polling" />
+    package="relay.petko.polling" >
+
+    <application>
+    <service
+        android:name=".PollingService"
+        android:enabled="true"
+        android:exported="false" />
+    </application>>
+
+</manifest>

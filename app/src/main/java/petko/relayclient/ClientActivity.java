@@ -2,9 +2,11 @@ package petko.relayclient;
 
 import android.annotation.SuppressLint;
 import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.net.wifi.WifiManager;
@@ -24,8 +26,12 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpConnectionParams;
+import org.apache.http.params.HttpParams;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -42,6 +48,10 @@ public class ClientActivity extends AppCompatActivity {
     private boolean relayServiceBound = false;
     private RelayService relayService;
     private ServiceConnection relayServiceConnection;
+    private List<String> dataFromServer = new ArrayList<>();
+    private BroadcastReceiver getDataReceiver;
+
+    public static final String HAVE_DATA = BuildConfig.APPLICATION_ID + ".HAVE_DATA";
 
     private static final CustomLogger log = Logging.getLogger(ClientActivity.class);
 
@@ -55,24 +65,34 @@ public class ClientActivity extends AppCompatActivity {
             @RequiresApi(api = Build.VERSION_CODES.CUPCAKE)
             @Override
             public void onClick(View view) {
-                if(relayServiceBound){
-                    relayService.transmit(new byte[]{(byte)0xA0,(byte)0x01,(byte)0x01,(byte)0xA2});
+                log.debug(RelayClientApplication.PreferenceKeys.SERVER_ADDRESS);
+                if (relayServiceBound) {
+                    relayService.transmit(new byte[]{(byte) 0xA0, (byte) 0x01, (byte) 0x01, (byte) 0xA2});
                 }
             }
         });
         findViewById(R.id.realyKi).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(relayServiceBound){
-                    relayService.transmit(new byte[]{(byte)0xA0,(byte)0x01,(byte)0x00,(byte)0xA1});
+                if (relayServiceBound) {
+                    relayService.transmit(new byte[]{(byte) 0xA0, (byte) 0x01, (byte) 0x00, (byte) 0xA1});
                 }
             }
         });
         new registerTask().execute();
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        log.debug("onResume-begin");
+        log.debug("onResume-end");
     }
 
     @Override
     protected void onStart() {
+        log.debug("onStart-begin");
         super.onStart();
         relayServiceConnection = new ServiceConnection() {
             @Override
@@ -93,11 +113,33 @@ public class ClientActivity extends AppCompatActivity {
         };
         Intent intent = new Intent(this, RelayService.class);
         bindService(intent, relayServiceConnection, Context.BIND_AUTO_CREATE);
+
+        getDataReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                if (action != null) {
+                    switch (action) {
+                        case HAVE_DATA:
+                            dataFromServer = intent.getStringArrayListExtra("data");
+                            for (String s : dataFromServer) {
+                                log.debug(s);
+                            }
+                            break;
+                    }
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(HAVE_DATA);
+        registerReceiver(getDataReceiver, filter);
+        log.debug("onStart-end");
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        unregisterReceiver(getDataReceiver);
         if (relayServiceBound) {
             unbindService(relayServiceConnection);
             relayServiceBound = false;
@@ -110,6 +152,7 @@ public class ClientActivity extends AppCompatActivity {
 
         TextView t;
         ProgressDialog progress;
+        boolean err = false;
 
         @Override
         protected void onPreExecute() {
@@ -117,9 +160,9 @@ public class ClientActivity extends AppCompatActivity {
             t = (TextView) findViewById(R.id.textView);
             t.setText("");
             progress = new ProgressDialog(ClientActivity.this);
-            progress.setTitle("Töltés");
+            progress.setTitle("Töltés...");
             progress.setMessage("Adatok kérése a Szervertől.");
-            progress.setCancelable(false); // disable dismiss by tapping outside of the dialog
+            progress.setCancelable(false);
             progress.show();
         }
 
@@ -127,7 +170,7 @@ public class ClientActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(List<String> result) {
             progress.dismiss();
-            if(!result.isEmpty()) {
+            if (!result.isEmpty()) {
                 for (String s : result) {
                     log.info(s);
                     t.append(s);
@@ -136,16 +179,19 @@ public class ClientActivity extends AppCompatActivity {
                     SharedPreferences.Editor editor = RelayClientApplication.config.edit();
                     editor.putString(RelayClientApplication.PreferenceKeys.DEVICE_ID, data[1]);
                 }
-            }else{
-                Toast.makeText(ClientActivity.this,"Nem sikerült kapcsolatot létesíteni!",Toast.LENGTH_SHORT);
+            } else if (err) {
+                log.debug("asdasd");
+                Toast.makeText(getApplicationContext(), "Nem sikerült kapcsolatot létesíteni!", Toast.LENGTH_LONG).show();
             }
         }
 
         @Override
         protected List<String> doInBackground(Void... voids) {
             List<String> res = new ArrayList<>();
-            HttpClient client = new DefaultHttpClient();
-            HttpPost post = new HttpPost("http://192.168.0.107:9000/Register");
+            final HttpParams httpParams = new BasicHttpParams();
+            HttpConnectionParams.setConnectionTimeout(httpParams, 30000);
+            HttpClient client = new DefaultHttpClient(httpParams);
+            HttpPost post = new HttpPost(BuildConfig.SERVER_ADDRESS + "/Register"); // CSERÉLD!!
             try {
                 WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
                 String ip = Formatter.formatIpAddress(wm != null ? wm.getConnectionInfo().getIpAddress() : 0);
@@ -171,6 +217,9 @@ public class ClientActivity extends AppCompatActivity {
                     log.warn("Hiba történt!");
                 }
 
+            } catch (ConnectTimeoutException e) {
+                log.debug("asd");
+                err = true;
             } catch (IOException e) {
                 e.printStackTrace();
             }

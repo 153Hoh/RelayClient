@@ -13,6 +13,7 @@ import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
@@ -43,13 +44,16 @@ import relay.petko.relay.log.CustomLogger;
 import relay.petko.relay.log.Logging;
 import relay.petko.relaymain.RelayService;
 
-public class ClientActivity extends AppCompatActivity {
+public class ClientActivity extends AppCompatActivity implements RegisterCallback{
 
     private boolean relayServiceBound = false;
     private RelayService relayService;
     private ServiceConnection relayServiceConnection;
     private List<String> dataFromServer = new ArrayList<>();
     private BroadcastReceiver getDataReceiver;
+    private RegisterTask registerTask;
+    private String deviceId;
+    boolean registerDone = false;
 
     public static final String HAVE_DATA = BuildConfig.APPLICATION_ID + ".HAVE_DATA";
 
@@ -79,8 +83,8 @@ public class ClientActivity extends AppCompatActivity {
                 }
             }
         });
-        new registerTask().execute();
-
+        registerTask = new RegisterTask();
+        registerTask.execute();
     }
 
     @Override
@@ -146,22 +150,37 @@ public class ClientActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    public void onRegister(String deviceId) {
+        log.debug("itten" + deviceId);
+        @SuppressLint("CommitPrefEdits")
+        SharedPreferences.Editor editor = RelayClientApplication.config.edit();
+        editor.putString(RelayClientApplication.PreferenceKeys.DEVICE_ID, deviceId);
+        editor.apply();
+        log.debug("batd " + RelayClientApplication.config.getString(RelayClientApplication.PreferenceKeys.DEVICE_ID,null));
+    }
+
     @SuppressLint("StaticFieldLeak")
     @RequiresApi(api = Build.VERSION_CODES.CUPCAKE)
-    private class registerTask extends AsyncTask<Void, Void, List<String>> {
+    private class RegisterTask extends AsyncTask<Void, Void, List<String>> {
 
         TextView t;
-        ProgressDialog progress;
         boolean err = false;
+        ProgressDialog progress;
+
+        private void callReg(RegisterCallback registerCallback, String deviceName){
+            registerCallback.onRegister(deviceName);
+        }
 
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
             t = (TextView) findViewById(R.id.textView);
             t.setText("");
+
             progress = new ProgressDialog(ClientActivity.this);
-            progress.setTitle("Töltés...");
-            progress.setMessage("Adatok kérése a Szervertől.");
+            progress.setTitle("Regisztráció...");
+            progress.setMessage("Eszköz regisztrálása.");
             progress.setCancelable(false);
             progress.show();
         }
@@ -169,20 +188,18 @@ public class ClientActivity extends AppCompatActivity {
         @SuppressLint("ShowToast")
         @Override
         protected void onPostExecute(List<String> result) {
-            progress.dismiss();
             if (!result.isEmpty()) {
                 for (String s : result) {
                     log.info(s);
                     t.append(s);
                     String[] data = s.split("[:]");
-                    @SuppressLint("CommitPrefEdits")
-                    SharedPreferences.Editor editor = RelayClientApplication.config.edit();
-                    editor.putString(RelayClientApplication.PreferenceKeys.DEVICE_ID, data[1]);
+                    callReg(ClientActivity.this,data[1]);
                 }
             } else if (err) {
-                log.debug("asdasd");
                 Toast.makeText(getApplicationContext(), "Nem sikerült kapcsolatot létesíteni!", Toast.LENGTH_LONG).show();
             }
+            progress.dismiss();
+            registerDone = true;
         }
 
         @Override
@@ -195,7 +212,7 @@ public class ClientActivity extends AppCompatActivity {
             try {
                 WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
                 String ip = Formatter.formatIpAddress(wm != null ? wm.getConnectionInfo().getIpAddress() : 0);
-                String deviceType = "controller";
+                String deviceType = RelayClientApplication.config.getString(RelayClientApplication.PreferenceKeys.DEVICE_TYPE,null);
 
                 List<NameValuePair> nameValuePairs = new ArrayList<>(1);
                 nameValuePairs.add(new BasicNameValuePair("register", "register"));
@@ -225,6 +242,5 @@ public class ClientActivity extends AppCompatActivity {
             }
             return res;
         }
-
     }
 }

@@ -8,6 +8,7 @@
       <module fileurl="file://$PROJECT_DIR$/Modules/relay-handler/relay-handler.iml" filepath="$PROJECT_DIR$/Modules/relay-handler/relay-handler.iml" />
       <module fileurl="file://$PROJECT_DIR$/Modules/relay-log/relay-log.iml" filepath="$PROJECT_DIR$/Modules/relay-log/relay-log.iml" />
       <module fileurl="file://$PROJECT_DIR$/Modules/relay-polling/relay-polling.iml" filepath="$PROJECT_DIR$/Modules/relay-polling/relay-polling.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Modules/relay-utils/relay-utils.iml" filepath="$PROJECT_DIR$/Modules/relay-utils/relay-utils.iml" />
     </modules>
   </component>
 </project>

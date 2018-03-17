@@ -43,8 +43,4 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
-    //noinspection DuplicatePlatformClasses
-    compile 'org.apache.httpcomponents:httpclient:4.5.5'
-    implementation project(path: ':Modules:relay-log')
-    compile project(path: ':Modules:relay-utils')
 }

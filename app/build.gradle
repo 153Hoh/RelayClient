@@ -20,11 +20,11 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField "String", "SERVER_ADDRESS", "\"http://192.168.6.16:9000\""
+            buildConfigField "String", "SERVER_ADDRESS", "\"http://192.168.0.104:9000\""
         }
 
         release {
-            buildConfigField "String", "SERVER_ADDRESS", "\"http://192.168.6.16:9000\""
+            buildConfigField "String", "SERVER_ADDRESS", "\"http://192.168.0.104:9000\""
         }
     }
 
@@ -51,6 +51,7 @@ dependencies {
     //noinspection GradleCompatible
     implementation "com.android.support:appcompat-v7:${rootProject.ext.supportLibVersion}"
     implementation 'com.android.support.constraint:constraint-layout:1.0.2'
+    implementation 'com.android.support:design:27.1.0'
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
@@ -58,4 +59,6 @@ dependencies {
     compile 'org.apache.httpcomponents:httpclient:4.5.5'
     implementation project(path: ':Modules:relay-handler')
     implementation project(path: ':Modules:relay-log')
+    implementation project(path: ':Modules:relay-polling')
+    compile project(path: ':Modules:relay-utils')
 }

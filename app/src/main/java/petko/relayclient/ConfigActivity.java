@@ -1,17 +1,14 @@
 package petko.relayclient;
 
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.os.Handler;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
-import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,14 +52,16 @@ public class ConfigActivity extends AppCompatActivity {
                 switch (type){
                     case 0:
                         editor.putString(RelayClientApplication.PreferenceKeys.DEVICE_TYPE,"handler");
-                        Intent intent = new Intent(ConfigActivity.this,ClientActivity.class);
-                        startActivity(intent);
+                        Intent handlerIntent = new Intent(ConfigActivity.this,HandlerActivity.class);
+                        startActivity(handlerIntent);
                         break;
                     case 1:
                         editor.putString(RelayClientApplication.PreferenceKeys.DEVICE_TYPE,"controller");
+                        Intent controllerIntent = new Intent(ConfigActivity.this,LoginToControllerActivity.class);
+                        startActivity(controllerIntent);
                         break;
                 }
-                editor.commit();
+                editor.apply();
             }
         });
     }

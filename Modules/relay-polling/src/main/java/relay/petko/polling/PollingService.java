@@ -13,10 +13,9 @@ import android.support.v4.content.LocalBroadcastManager;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
-import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 
 import java.io.BufferedReader;
@@ -24,9 +23,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import relay.petko.relay.log.CustomLogger;
 import relay.petko.relay.log.Logging;
+import relay.petko.relay.utils.DataFromServerCallback;
 
 public class PollingService extends Service{
 
@@ -37,17 +40,14 @@ public class PollingService extends Service{
     private final IBinder binder = new PollingBinder();
     private HandlerThread handlerThread;
     private Handler handler;
-    private final LocalBroadcastManager localBroadcastManager;
-
-    public PollingService(final Context context) {
-        this.localBroadcastManager = LocalBroadcastManager.getInstance(context);
-    }
+    private ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
 
     @Override
     public void onCreate(){
         log.debug("onCreate-begin");
         super.onCreate();
         handlerThread = new HandlerThread("PollingService HandlerThread");
+        handlerThread.start();
         handler =  new Handler(handlerThread.getLooper());
         log.debug("onCreate-end");
 
@@ -57,6 +57,19 @@ public class PollingService extends Service{
     public void onDestroy() {
         log.debug("onDestroy-Begin");
         handlerThread.quit();
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(6000, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+                if (!executorService.awaitTermination(6000, TimeUnit.SECONDS))
+                {
+                    log.warn("polling did not terminate");
+                }
+            }
+        } catch (InterruptedException ie) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
 
         super.onDestroy();
         log.debug("onDestroy-End");
@@ -74,6 +87,10 @@ public class PollingService extends Service{
         return binder;
     }
 
+    public void startPolling(String deviceId, Context context, DataFromServerCallback dataFromServerCallback){
+        handler.post(new PollingRunnable(deviceId, context, dataFromServerCallback));
+    }
+
     public class PollingBinder extends Binder {
 
         public PollingService getService() {
@@ -84,38 +101,59 @@ public class PollingService extends Service{
 
     private class PollingRunnable implements Runnable{
 
+        private final String deviceId;
+        private LocalBroadcastManager localBroadcastManager;
+        private DataFromServerCallback dataFromServerCallback;
+
+        private PollingRunnable(String deviceId, Context context, DataFromServerCallback dataFromServerCallback) {
+            this.deviceId = deviceId;
+            this.localBroadcastManager = LocalBroadcastManager.getInstance(context);
+            this.dataFromServerCallback = dataFromServerCallback;
+        }
+
+        private void dataReceived(DataFromServerCallback dataFromServerCallback, String from, List<String> data){
+            dataFromServerCallback.onDataReceived(from, data);
+        }
+
         @Override
         public void run() {
-            List<String> res = new ArrayList<>();
-            RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(30 * 1000).build();
-            HttpClient client = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build();
-            HttpPost post = new HttpPost("http://192.168.0.107:9000/Pollget");
-            try {
+            log.debug("Poll-start");
+            executorService.scheduleAtFixedRate(new Runnable() {
+                @Override
+                public void run() {
+                    List<String> res = new ArrayList<>();
+                    HttpClient client = new DefaultHttpClient();
+                    HttpPost post = new HttpPost(BuildConfig.SERVER_ADDRESS + "/Poll");
+                    try {
 
-                List<NameValuePair> nameValuePairs = new ArrayList<>(1);
-                nameValuePairs.add(new BasicNameValuePair("poll", "poll"));
+                        List<NameValuePair> nameValuePairs = new ArrayList<>(1);
+                        nameValuePairs.add(new BasicNameValuePair("id", deviceId));
 
-                post.setEntity(new UrlEncodedFormEntity(nameValuePairs));
+                        post.setEntity(new UrlEncodedFormEntity(nameValuePairs));
 
-                HttpResponse response = client.execute(post);
-                BufferedReader rd = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
-                String line;
-                int statusCode = response.getStatusLine().getStatusCode();
-                if (statusCode == 200) {
-                    while ((line = rd.readLine()) != null) {
-                        log.info(line);
-                        res.add(line);
+                        HttpResponse response = client.execute(post);
+                        BufferedReader rd = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+                        String line;
+                        int statusCode = response.getStatusLine().getStatusCode();
+                        if (statusCode == 200) {
+                            while ((line = rd.readLine()) != null) {
+                                log.info(line);
+                                res.add(line);
+                            }
+                        } else {
+                            log.warn("Hiba történt!");
+                        }
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
-                } else {
-                    log.warn("Hiba történt!");
+                    if(!res.isEmpty()){
+                        log.debug("HAVE_DATA");
+                        dataReceived(dataFromServerCallback,HAVE_DATA,res);
+                    }
                 }
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            if(!res.isEmpty()){
-                localBroadcastManager.sendBroadcast(new Intent(HAVE_DATA).putStringArrayListExtra("data", (ArrayList<String>) res));
-            }
+            },0,5000, TimeUnit.MILLISECONDS);
+        log.debug("Poll-end");
         }
     }
 }

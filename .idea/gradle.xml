@@ -12,6 +12,7 @@
             <option value="$PROJECT_DIR$/Modules/relay-handler" />
             <option value="$PROJECT_DIR$/Modules/relay-log" />
             <option value="$PROJECT_DIR$/Modules/relay-polling" />
+            <option value="$PROJECT_DIR$/Modules/relay-utils" />
             <option value="$PROJECT_DIR$/app" />
           </set>
         </option>

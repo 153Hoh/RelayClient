@@ -2,7 +2,6 @@ package petko.relayclient;
 
 import android.annotation.SuppressLint;
 import android.app.ProgressDialog;
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -13,7 +12,6 @@ import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
@@ -40,24 +38,25 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import relay.petko.polling.PollingService;
 import relay.petko.relay.log.CustomLogger;
 import relay.petko.relay.log.Logging;
+import relay.petko.relay.utils.DataFromServerCallback;
+import relay.petko.relay.utils.RegisterCallback;
 import relay.petko.relaymain.RelayService;
 
-public class ClientActivity extends AppCompatActivity implements RegisterCallback{
+public class HandlerActivity extends AppCompatActivity implements RegisterCallback, DataFromServerCallback {
 
     private boolean relayServiceBound = false;
+    private boolean pollingServiceBound = false;
     private RelayService relayService;
+    private PollingService pollingService;
     private ServiceConnection relayServiceConnection;
-    private List<String> dataFromServer = new ArrayList<>();
-    private BroadcastReceiver getDataReceiver;
-    private RegisterTask registerTask;
-    private String deviceId;
-    boolean registerDone = false;
+    private ServiceConnection pollingServiceConnection;
 
     public static final String HAVE_DATA = BuildConfig.APPLICATION_ID + ".HAVE_DATA";
 
-    private static final CustomLogger log = Logging.getLogger(ClientActivity.class);
+    private static final CustomLogger log = Logging.getLogger(HandlerActivity.class);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,7 +82,7 @@ public class ClientActivity extends AppCompatActivity implements RegisterCallbac
                 }
             }
         });
-        registerTask = new RegisterTask();
+        RegisterTask registerTask = new RegisterTask();
         registerTask.execute();
     }
 
@@ -115,49 +114,73 @@ public class ClientActivity extends AppCompatActivity implements RegisterCallbac
                 }
             }
         };
-        Intent intent = new Intent(this, RelayService.class);
-        bindService(intent, relayServiceConnection, Context.BIND_AUTO_CREATE);
+        Intent relayIntent = new Intent(this, RelayService.class);
+        bindService(relayIntent, relayServiceConnection, Context.BIND_AUTO_CREATE);
 
-        getDataReceiver = new BroadcastReceiver() {
+        pollingServiceConnection = new ServiceConnection() {
             @Override
-            public void onReceive(Context context, Intent intent) {
-                String action = intent.getAction();
-                if (action != null) {
-                    switch (action) {
-                        case HAVE_DATA:
-                            dataFromServer = intent.getStringArrayListExtra("data");
-                            for (String s : dataFromServer) {
-                                log.debug(s);
-                            }
-                            break;
-                    }
+            public void onServiceConnected(ComponentName name, IBinder service) {
+                PollingService.PollingBinder binder = (PollingService.PollingBinder) service;
+                pollingService = binder.getService();
+                pollingServiceBound = true;
+                pollingService.startPolling(RelayClientApplication.config.getString(RelayClientApplication.PreferenceKeys.DEVICE_ID,null), HandlerActivity.this, HandlerActivity.this);
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+                if(pollingServiceBound){
+                    unbindService(pollingServiceConnection);
+                    pollingServiceBound = false;
                 }
             }
         };
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(HAVE_DATA);
-        registerReceiver(getDataReceiver, filter);
+        Intent pollIntent = new Intent(this,PollingService.class);
+        bindService(pollIntent,pollingServiceConnection,Context.BIND_AUTO_CREATE);
+
         log.debug("onStart-end");
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        unregisterReceiver(getDataReceiver);
         if (relayServiceBound) {
             unbindService(relayServiceConnection);
             relayServiceBound = false;
+        }
+        if(pollingServiceBound){
+            unbindService(pollingServiceConnection);
+            pollingServiceBound = false;
         }
     }
 
     @Override
     public void onRegister(String deviceId) {
-        log.debug("itten" + deviceId);
         @SuppressLint("CommitPrefEdits")
         SharedPreferences.Editor editor = RelayClientApplication.config.edit();
         editor.putString(RelayClientApplication.PreferenceKeys.DEVICE_ID, deviceId);
         editor.apply();
         log.debug("batd " + RelayClientApplication.config.getString(RelayClientApplication.PreferenceKeys.DEVICE_ID,null));
+    }
+
+    @Override
+    public void onDataReceived(String from, List<String> data) {
+        if(from != null){
+            switch (from) {
+                case PollingService.HAVE_DATA:
+                    for(String s:data){
+                        if(s.equalsIgnoreCase("relayON")){
+                            if (relayServiceBound) {
+                                relayService.transmit(new byte[]{(byte) 0xA0, (byte) 0x01, (byte) 0x01, (byte) 0xA2});
+                            }
+                        } else if (s.equalsIgnoreCase("relayOFF")){
+                            if (relayServiceBound) {
+                                relayService.transmit(new byte[]{(byte) 0xA0, (byte) 0x01, (byte) 0x00, (byte) 0xA1});
+                            }
+                        }
+                    }
+                    break;
+            }
+        }
     }
 
     @SuppressLint("StaticFieldLeak")
@@ -175,10 +198,10 @@ public class ClientActivity extends AppCompatActivity implements RegisterCallbac
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            t = (TextView) findViewById(R.id.textView);
+            t = findViewById(R.id.textView);
             t.setText("");
 
-            progress = new ProgressDialog(ClientActivity.this);
+            progress = new ProgressDialog(HandlerActivity.this);
             progress.setTitle("Regisztráció...");
             progress.setMessage("Eszköz regisztrálása.");
             progress.setCancelable(false);
@@ -193,13 +216,12 @@ public class ClientActivity extends AppCompatActivity implements RegisterCallbac
                     log.info(s);
                     t.append(s);
                     String[] data = s.split("[:]");
-                    callReg(ClientActivity.this,data[1]);
+                    callReg(HandlerActivity.this,data[1]);
                 }
             } else if (err) {
                 Toast.makeText(getApplicationContext(), "Nem sikerült kapcsolatot létesíteni!", Toast.LENGTH_LONG).show();
             }
             progress.dismiss();
-            registerDone = true;
         }
 
         @Override
@@ -208,14 +230,14 @@ public class ClientActivity extends AppCompatActivity implements RegisterCallbac
             final HttpParams httpParams = new BasicHttpParams();
             HttpConnectionParams.setConnectionTimeout(httpParams, 30000);
             HttpClient client = new DefaultHttpClient(httpParams);
-            HttpPost post = new HttpPost(BuildConfig.SERVER_ADDRESS + "/Register"); // CSERÉLD!!
+            HttpPost post = new HttpPost(RelayClientApplication.config.getString(RelayClientApplication.PreferenceKeys.SERVER_ADDRESS,null) + "/Register");
             try {
                 WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
                 String ip = Formatter.formatIpAddress(wm != null ? wm.getConnectionInfo().getIpAddress() : 0);
                 String deviceType = RelayClientApplication.config.getString(RelayClientApplication.PreferenceKeys.DEVICE_TYPE,null);
 
                 List<NameValuePair> nameValuePairs = new ArrayList<>(1);
-                nameValuePairs.add(new BasicNameValuePair("register", "register"));
+                nameValuePairs.add(new BasicNameValuePair("registerHand", "registerHand"));
                 nameValuePairs.add(new BasicNameValuePair("ip", ip));
                 nameValuePairs.add(new BasicNameValuePair("devicetype", deviceType));
 
@@ -235,7 +257,6 @@ public class ClientActivity extends AppCompatActivity implements RegisterCallbac
                 }
 
             } catch (ConnectTimeoutException e) {
-                log.debug("asd");
                 err = true;
             } catch (IOException e) {
                 e.printStackTrace();
